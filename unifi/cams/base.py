@@ -13,11 +13,11 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
-from pkg_resources import packaging
-
 
 import aiohttp
+import packaging
 import websockets
+
 from unifi.core import RetryableError
 
 AVClientRequest = AVClientResponse = dict[str, Any]
@@ -84,13 +84,13 @@ class UnifiCamBase(metaclass=ABCMeta):
                     raise RetryableError()
 
     async def run(self) -> None:
-        pass
+        return
 
     async def get_video_settings(self) -> dict[str, Any]:
         return {}
 
     async def change_video_settings(self, options) -> None:
-        pass
+        return
 
     @abstractmethod
     async def get_snapshot(self) -> Path:
@@ -383,7 +383,7 @@ class UnifiCamBase(metaclass=ABCMeta):
                     "quality": 0,
                     "sampleRate": 11025,
                     "type": "aac",
-                    "volume": 100,
+                    "volume": 0,
                 },
                 "firmwarePath": "/lib/firmware/",
                 "video": {
@@ -925,17 +925,17 @@ class UnifiCamBase(metaclass=ABCMeta):
         has_spawned = stream_index in self._ffmpeg_handles
         is_dead = has_spawned and self._ffmpeg_handles[stream_index].poll() is not None
 
-        stream_i = int(stream_index[-1]) - 1
-        # if stream_index == 'video1' and not has_spawned or is_dead:
         if not has_spawned or is_dead:
             source = await self.get_stream_source(stream_index)
             cmd = (
-                f"ffmpeg -nostdin -loglevel error -y {self.get_base_ffmpeg_args(stream_index)}"
-                f" -rtsp_transport {self.args.rtsp_transport}"
-                f' -i "{source}" {self.get_extra_ffmpeg_args(stream_index)}'
-                f" -metadata streamName={stream_name} -f flv -"
-                f" | {sys.executable} -m unifi.clock_sync {'--write-timestamps' if self._needs_flv_timestamps else ''}"
-                f" | nc {destination[0]} {destination[1]}"
+                "ffmpeg -nostdin -loglevel error -y"
+                f" {self.get_base_ffmpeg_args(stream_index)} -rtsp_transport"
+                f' {self.args.rtsp_transport} -i "{source}"'
+                f" {self.get_extra_ffmpeg_args(stream_index)} -metadata"
+                f" streamName={stream_name} -f flv - | {sys.executable} -m"
+                " unifi.clock_sync"
+                f" {'--write-timestamps' if self._needs_flv_timestamps else ''} | nc"
+                f" {destination[0]} {destination[1]}"
             )
 
             if is_dead:

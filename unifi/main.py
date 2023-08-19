@@ -3,9 +3,9 @@ import asyncio
 import logging
 import sys
 from shutil import which
-from pyunifiprotect import ProtectApiClient
 
 import coloredlogs
+from pyunifiprotect import ProtectApiClient
 
 from unifi.cams import (
     DahuaCam,
@@ -43,7 +43,9 @@ def parse_args():
         default="client.pem",
         help="Client certificate path",
     )
-    parser.add_argument("--token", "-t", required=False, default=None, help="Adoption token")
+    parser.add_argument(
+        "--token", "-t", required=False, default=None, help="Adoption token"
+    )
     parser.add_argument("--mac", "-m", default="AABBCCDDEEFF", help="MAC address")
     parser.add_argument(
         "--ip",
@@ -61,9 +63,19 @@ def parse_args():
         "--model",
         default="UVC G3",
         choices=[
+            "UVC",
+            "UVC AI 360",
+            "UVC AI Bullet",
+            "UVC AI THETA",
+            "UVC AI DSLR",
+            "UVC Pro",
+            "UVC Dome",
+            "UVC Micro",
             "UVC G3",
+            "UVC G3 Battery",
             "UVC G3 Dome",
             "UVC G3 Micro",
+            "UVC G3 Mini",
             "UVC G3 Instant",
             "UVC G3 Pro",
             "UVC G3 Flex",
@@ -71,7 +83,16 @@ def parse_args():
             "UVC G4 Pro",
             "UVC G4 PTZ",
             "UVC G4 Doorbell",
+            "UVC G4 Doorbell Pro",
+            "UVC G4 Doorbell Pro PoE",
             "UVC G4 Dome",
+            "UVC G4 Instant",
+            "UVC G5 Bullet",
+            "UVC G5 Dome",
+            "UVC G5 Flex",
+            "UVC G5 Pro",
+            "AFi VC",
+            "Vision Pro",
         ],
         help="Hardware model to identify as",
     )
@@ -90,7 +111,7 @@ def parse_args():
         dest="impl",
         required=True,
     )
-    for (name, impl) in CAMS.items():
+    for name, impl in CAMS.items():
         subparser = sp.add_parser(name)
         impl.add_parser(subparser)
     return parser.parse_args()
@@ -98,12 +119,17 @@ def parse_args():
 
 async def generate_token(args, logger):
     try:
-        protect = ProtectApiClient(args.host, 443, args.nvr_username, args.nvr_password, verify_ssl=False)
+        protect = ProtectApiClient(
+            args.host, 443, args.nvr_username, args.nvr_password, verify_ssl=False
+        )
         await protect.update()
         response = await protect.api_request("cameras/manage-payload")
-        return response['mgmt']['token']
+        return response["mgmt"]["token"]
     except Exception:
-        logger.warn("Could not automatically fetch token, please see docs at https://unifi-cam-proxy.com/")
+        logger.exception(
+            "Could not automatically fetch token, please see docs at"
+            " https://unifi-cam-proxy.com/"
+        )
         return None
     finally:
         await protect.close_session()
@@ -114,13 +140,13 @@ async def run():
     klass = CAMS[args.impl]
 
     core_logger = logging.getLogger("Core")
-    logger = logging.getLogger(klass.__name__)
+    class_logger = logging.getLogger(klass.__name__)
 
     level = logging.INFO
     if args.verbose:
         level = logging.DEBUG
 
-    for logger in [core_logger, logger]:
+    for logger in [core_logger, class_logger]:
         coloredlogs.install(level=level, logger=logger)
 
     # Preflight checks
@@ -147,4 +173,4 @@ def main():
 
 
 if __name__ == "__main__":
-   main()
+    main()

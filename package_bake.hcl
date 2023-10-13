@@ -14,9 +14,10 @@ target "default" {
   dockerfile = "Dockerfile"
   args = {
   }
-  platforms = ["linux/arm/v7","linux/arm64"]
+  platforms = ["linux/arm64"]
   tags = ["${REGISTRY_IMAGE}:${VERSION}"]
 }
+// "linux/arm/v7",
 
 // target "package-armv7" {
 //   inherits = ["default"]

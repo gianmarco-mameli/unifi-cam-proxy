@@ -1,5 +1,5 @@
-ARG version=3.11
-ARG tag=${version}-alpine
+ARG version=3.12.0
+ARG tag=${version}-alpine3.18.4
 
 FROM python:${tag} as builder
 WORKDIR /app

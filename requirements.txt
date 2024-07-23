@@ -15,7 +15,7 @@ click==8.0.3
 coloredlogs
 decorator==5.1.0
 flvlib3@https://github.com/zkonge/flvlib3/archive/master.zip
-frozenlist==1.2.0
+frozenlist # ==1.2.0
 hikvisionapi>=0.3.2
 idna==3.3
 ipython==7.29.0
@@ -46,4 +46,4 @@ typing-extensions==4.0.0
 wcwidth==0.2.5
 websockets>=9.0.1
 xmltodict
-yarl==1.7.2
+yarl # ==1.7.2

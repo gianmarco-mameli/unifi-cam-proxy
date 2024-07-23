@@ -7,7 +7,7 @@ flvlib3@https://github.com/zkonge/flvlib3/archive/master.zip
 hikvisionapi>=0.3.2
 semver
 packaging
-pyunifiprotect
+pyunifiprotect@https://github.com/bdraco/pyunifiprotect.git
 reolinkapi
 websockets>=9.0.1
 xmltodict

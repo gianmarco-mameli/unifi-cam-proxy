@@ -1,7 +1,7 @@
 ARG version=3.12
 ARG tag=${version}-alpine3.20
 
-FROM python:${tag} as builder
+FROM python:${tag} AS builder
 WORKDIR /app
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 

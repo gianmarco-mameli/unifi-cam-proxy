@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 import backoff
 from aiomqtt import Client
-from aiomqtt.error import MqttError
+from aiomqtt import MqttError
 
 from unifi.cams.base import SmartDetectObjectType
 from unifi.cams.rtsp import RTSPCam

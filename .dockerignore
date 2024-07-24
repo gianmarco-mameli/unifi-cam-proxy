@@ -9,3 +9,6 @@ run/
 MANIFEST
 MANIFEST.in
 .pyre/
+.gitlab-ci.yml
+buildkitd.toml.tmpl
+package_bake.hcl

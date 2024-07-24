@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import backoff
-from aiomqtt import Client
-from aiomqtt import MqttError
+from aiomqtt import Client, Message
+from aiomqtt.exceptions import MqttError
 
 from unifi.cams.base import SmartDetectObjectType
 from unifi.cams.rtsp import RTSPCam
@@ -75,80 +75,85 @@ class FrigateCam(RTSPCam):
                     self.logger.info(
                         f"Connected to {self.args.mqtt_host}:{self.args.mqtt_port}"
                     )
-                    tasks = [
-                        self.handle_detection_events(client),
-                        self.handle_snapshot_events(client),
-                    ]
                     await client.subscribe(f"{self.args.mqtt_prefix}/#")
-                    await asyncio.gather(*tasks)
+                    async with asyncio.TaskGroup() as tg:
+                        async for message in client.messages:
+                            if message.topic.matches(f"{self.args.mqtt_prefix}/events"):
+                                tg.create_task(self.handle_detection_event(message))
+                            elif message.topic.matches(
+                                f"{self.args.mqtt_prefix}/{self.args.frigate_camera}/+/snapshot"
+                            ):
+                                tg.create_task(self.handle_snapshot_event(message))
             except MqttError:
                 if not has_connected:
                     raise
 
         await mqtt_connect()
 
-    async def handle_detection_events(self, client) -> None:
-        async with client.filtered_messages(
-            f"{self.args.mqtt_prefix}/events"
-        ) as messages:
-            async for message in messages:
-                msg = message.payload.decode()
-                try:
-                    frigate_msg = json.loads(message.payload.decode())
-                    if not frigate_msg["after"]["camera"] == self.args.frigate_camera:
-                        continue
+    async def handle_detection_event(self, message: Message) -> None:
+        if not isinstance(message.payload, bytes):
+            self.logger.warning(
+                f"Unexpectedly received non-bytes payload for detection event: {message.payload}"
+            )
+            return
 
-                    label = frigate_msg["after"]["label"]
-                    object_type = self.label_to_object_type(label)
-                    if not object_type:
-                        self.logger.warning(
-                            f"Received unsupported detection label type: {label}"
-                        )
+        msg = message.payload.decode()
+        try:
+            frigate_msg = json.loads(message.payload.decode())
+            if not frigate_msg["after"]["camera"] == self.args.frigate_camera:
+                return
 
-                    if not self.event_id and frigate_msg["type"] == "new":
-                        self.event_id = frigate_msg["after"]["id"]
-                        self.event_label = label
-                        self.event_snapshot_ready = asyncio.Event()
-                        self.logger.info(
-                            f"Starting {self.event_label} motion event"
-                            f" (id: {self.event_id})"
-                        )
-                        await self.trigger_motion_start(object_type)
-                    elif (
-                        self.event_id == frigate_msg["after"]["id"]
-                        and frigate_msg["type"] == "end"
-                    ):
-                        # Wait for the best snapshot to be ready before
-                        # ending the motion event
-                        self.logger.info(f"Awaiting snapshot (id: {self.event_id})")
-                        await self.event_snapshot_ready.wait()
-                        self.logger.info(
-                            f"Ending {self.event_label} motion event"
-                            f" (id: {self.event_id})"
-                        )
-                        await self.trigger_motion_stop()
-                        self.event_id = None
-                        self.event_label = None
-                except json.JSONDecodeError:
-                    self.logger.exception(f"Could not decode payload: {msg}")
+            label = frigate_msg["after"]["label"]
+            object_type = self.label_to_object_type(label)
+            if not object_type:
+                self.logger.warning(
+                    f"Received unsupported detection label type: {label}"
+                )
 
-    async def handle_snapshot_events(self, client) -> None:
-        topic_fmt = f"{self.args.mqtt_prefix}/{self.args.frigate_camera}/{{}}/snapshot"
-        async with client.filtered_messages(topic_fmt.format("+")) as messages:
-            async for message in messages:
-                if (
-                    self.event_id
-                    and not message.retain
-                    and message.topic == topic_fmt.format(self.event_label)
-                ):
-                    f = tempfile.NamedTemporaryFile()
-                    f.write(message.payload)
-                    self.logger.debug(
-                        f"Updating snapshot for {self.event_label} with {f.name}"
-                    )
-                    self.update_motion_snapshot(Path(f.name))
-                    self.event_snapshot_ready.set()
-                else:
-                    self.logger.debug(
-                        f"Discarding snapshot message ({len(message.payload)})"
-                    )
+            if not self.event_id and frigate_msg["type"] == "new":
+                self.event_id = frigate_msg["after"]["id"]
+                self.event_label = label
+                self.event_snapshot_ready = asyncio.Event()
+                self.logger.info(
+                    f"Starting {self.event_label} motion event"
+                    f" (id: {self.event_id})"
+                )
+                await self.trigger_motion_start(object_type)
+            elif (
+                self.event_id == frigate_msg["after"]["id"]
+                and frigate_msg["type"] == "end"
+                and self.event_snapshot_ready
+            ):
+                # Wait for the best snapshot to be ready before
+                # ending the motion event
+                self.logger.info(f"Awaiting snapshot (id: {self.event_id})")
+                await self.event_snapshot_ready.wait()
+                self.logger.info(
+                    f"Ending {self.event_label} motion event" f" (id: {self.event_id})"
+                )
+                await self.trigger_motion_stop()
+                self.event_id = None
+                self.event_label = None
+        except json.JSONDecodeError:
+            self.logger.exception(f"Could not decode payload: {msg}")
+
+    async def handle_snapshot_event(self, message: Message) -> None:
+        if not isinstance(message.payload, bytes):
+            self.logger.warning(
+                f"Unexpectedly received non-bytes payload for snapshot event: {message.payload}"
+            )
+            return
+
+        if (
+            self.event_id
+            and not message.retain
+            and message.topic.value.split("/")[-2] == self.event_label
+            and self.event_snapshot_ready
+        ):
+            f = tempfile.NamedTemporaryFile()
+            f.write(message.payload)
+            self.logger.debug(f"Updating snapshot for {self.event_label} with {f.name}")
+            self.update_motion_snapshot(Path(f.name))
+            self.event_snapshot_ready.set()
+        else:
+            self.logger.debug(f"Discarding snapshot message ({len(message.payload)})")

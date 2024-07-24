@@ -2,7 +2,13 @@
 sidebar_position: 3
 ---
 
-# Dahua/Lorex
+# Amcrest
+
+:::info
+
+Nothing changed between latest version and development version
+
+:::
 
 ## Options
 
@@ -28,16 +34,27 @@ optional arguments:
                         VideoMotion event index
 ```
 
-## Lorex LNB4321B
+## Amcrest IP8M-T2599E
 
 - [x] Supports full time recording
 - [x] Supports motion events
 - [ ] Supports smart detection
+- Notes:
+  - Camera configuration:
+    - Video codec must be H.264 (H.265/HEVC is not supported).
+    - Audio codec should be AAC. If not, adjust the ffmpeg args to re-encode to AAC.
+    - Ensure the sub stream is enabled.
+    - If desired, ensure motion detection is enabled with the desired anti-dither and detection area.
+  - The `-bsf:v` parameter is needed to make live video work.
+    The first `tick_rate` value should be `fps * 2000`.
+    See [this comment](https://github.com/keshavdv/unifi-cam-proxy/issues/31#issuecomment-841914363).
 
 ```sh
 unifi-cam-proxy --mac '{unique MAC}' -H {NVR IP} -i {camera IP} -c /client.pem -t {Adoption token} \
-    dahua \
+    amcrest \
     -u {username} \
     -p {password} \
-    --ffmpeg-args="-f lavfi -i anullsrc -c:v copy -ar 32000 -ac 1 -codec:a aac -b:a 32k"
+    --motion-index 0 \
+    --snapshot-channel 1 \
+    --ffmpeg-args='-c:a copy -c:v copy -bsf:v "h264_metadata=tick_rate=30000/1001"'
 ```

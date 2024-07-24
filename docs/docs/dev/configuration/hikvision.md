@@ -2,7 +2,21 @@
 sidebar_position: 3
 ---
 
-# Dahua/Lorex
+# Hikvision
+
+:::info
+
+Nothing changed between latest version and development version
+
+:::
+
+## Generic
+
+If your camera model is not listed specifically below, try the following:
+
+```sh
+unifi-cam-proxy -H {NVR IP} -i {camera IP} -c /client.pem -t {Adoption token} hikvision -u {username} -p {password}
+```
 
 ## Options
 
@@ -17,27 +31,20 @@ optional arguments:
   --password PASSWORD, -p PASSWORD
                         Camera password
   --channel CHANNEL, -c CHANNEL
-                        Camera channel
-  --snapshot-channel SNAPSHOT_CHANNEL
-                        Snapshot channel
-  --main-stream MAIN_STREAM
-                        Main Stream subtype index
-  --sub-stream SUB_STREAM
-                        Sub Stream subtype index
-  --motion-index MOTION_INDEX
-                        VideoMotion event index
+                        Camera channel index
+  --substream SUBSTREAM
+                        Camera substream index
 ```
 
-## Lorex LNB4321B
+## Hikvision DS-2DE3304W-DE
 
 - [x] Supports full time recording
-- [x] Supports motion events
+- [ ] Supports motion events
 - [ ] Supports smart detection
+- Notes:
+  - Change Pan/Tilt/Zoom via brightness/saturation/hue camera setting
 
 ```sh
 unifi-cam-proxy --mac '{unique MAC}' -H {NVR IP} -i {camera IP} -c /client.pem -t {Adoption token} \
-    dahua \
-    -u {username} \
-    -p {password} \
-    --ffmpeg-args="-f lavfi -i anullsrc -c:v copy -ar 32000 -ac 1 -codec:a aac -b:a 32k"
+    hikvision -u {username} -p {password}
 ```

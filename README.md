@@ -1,5 +1,3 @@
-[![unifi-cam-proxy Discord](https://img.shields.io/discord/937237037466124330?color=0559C9&label=Discord&logo=discord&logoColor=%23FFFFFF&style=for-the-badge)](https://discord.gg/Bxk9uGT6MW)
-
 # UniFi Camera Proxy
 
 ## About
@@ -17,7 +15,9 @@ Things that work:
 
 ## Documentation
 
-View the documentation at <https://unifi-cam-proxy.com>
+View the documentation at <https://zacharee.github.io/unifi-cam-proxy/>
+
+Replace the `image: ...` line in `docker-compose.yml` with `build: https://github.com/zacharee/unifi-cam-proxy.git`.
 
 ## Donations
 

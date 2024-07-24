@@ -4,6 +4,12 @@ sidebar_position: 4
 
 # Reolink
 
+:::info
+
+Nothing changed between latest version and development version
+
+:::
+
 ## Generic
 
 If your camera model is not listed specifically below, try the following:
@@ -32,7 +38,7 @@ optional arguments:
                         Camera password
   --substream SUBSTREAM, -s CHANNEL
                         Camera rtsp url substream index main, or sub
-```  
+```
 
 ## RLC-410-5MP
 

@@ -4,6 +4,12 @@ sidebar_position: 5
 
 # Reolink NVR
 
+:::info
+
+Nothing changed between latest version and development version
+
+:::
+
 ## Options
 
 ```text

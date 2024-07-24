@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import logging
 import tempfile
-import time
 from pathlib import Path
 from typing import Any, Union
 
@@ -56,51 +55,59 @@ class HikvisionCam(UnifiCamBase):
             pass
         return img_file
 
-    async def check_ptz_support(self, channel) -> bool:
+    async def check_ptz_support(self) -> bool:
         try:
-            await self.cam.PTZCtrl.channels[channel].capabilities(method="get")
-            self.logger.info("Detected PTZ support")
-            return True
+            r = await self.cam.PTZCtrl.channels[self.channel].capabilities(method="get")
+
+            if r['PTZChannelCap']['enabled']:
+                self.logger.info("Detected PTZ support")
+                return True
         except (httpx.RequestError, httpx.HTTPStatusError):
             pass
         return False
 
     async def get_video_settings(self) -> dict[str, Any]:
-        if self.ptz_supported:
-            r = (await self.cam.PTZCtrl.channels[1].status(method="get"))["PTZStatus"][
-                "AbsoluteHigh"
-            ]
-            return {
-                # Tilt/elevation
-                "brightness": int(100 * int(r["azimuth"]) / 3600),
-                # Pan/azimuth
-                "contrast": int(100 * int(r["azimuth"]) / 3600),
-                # Zoom
-                "hue": int(100 * int(r["absoluteZoom"]) / 40),
-            }
+        try:
+            if self.ptz_supported:
+                r = (await self.cam.PTZCtrl.channels[self.channel].status(method="get"))["PTZStatus"][
+                    "AbsoluteHigh"
+                ]
+                return {
+                    # Tilt/elevation
+                    "brightness": int(100 * int(r["azimuth"]) / 3600),
+                    # Pan/azimuth
+                    "contrast": int(100 * int(r["azimuth"]) / 3600),
+                    # Zoom
+                    "hue": int(100 * int(r["absoluteZoom"]) / 40),
+                }
+        except httpx.HTTPStatusError:
+            pass
         return {}
 
     async def change_video_settings(self, options: dict[str, Any]) -> None:
-        if self.ptz_supported:
-            tilt = int((900 * int(options["brightness"])) / 100)
-            pan = int((3600 * int(options["contrast"])) / 100)
-            zoom = int((40 * int(options["hue"])) / 100)
+        try:
+            if self.ptz_supported:
+                tilt = int((900 * int(options["brightness"])) / 100)
+                pan = int((3600 * int(options["contrast"])) / 100)
+                zoom = int((40 * int(options["hue"])) / 100)
 
-            self.logger.info("Moving to %s:%s:%s", pan, tilt, zoom)
-            req = {
-                "PTZData": {
-                    "@version": "2.0",
-                    "@xmlns": "http://www.hikvision.com/ver20/XMLSchema",
-                    "AbsoluteHigh": {
-                        "absoluteZoom": str(zoom),
-                        "azimuth": str(pan),
-                        "elevation": str(tilt),
-                    },
+                self.logger.info("Moving to %s:%s:%s", pan, tilt, zoom)
+                req = {
+                    "PTZData": {
+                        "@version": "2.0",
+                        "@xmlns": "http://www.hikvision.com/ver20/XMLSchema",
+                        "AbsoluteHigh": {
+                            "absoluteZoom": str(zoom),
+                            "azimuth": str(pan),
+                            "elevation": str(tilt),
+                        },
+                    }
                 }
-            }
-            await self.cam.PTZCtrl.channels[1].absolute(
-                method="put", data=xmltodict.unparse(req, pretty=True)
-            )
+                await self.cam.PTZCtrl.channels[self.channel].absolute(
+                    method="put", data=xmltodict.unparse(req, pretty=True)
+                )
+        except httpx.HTTPStatusError:
+            pass
 
     async def get_stream_source(self, stream_index: str) -> str:
         substream = 1
@@ -119,30 +126,30 @@ class HikvisionCam(UnifiCamBase):
             self.motion_in_progress = False
 
     async def run(self) -> None:
-        self.ptz_supported = await self.check_ptz_support(self.channel)
+        self.ptz_supported = await self.check_ptz_support()
         return
 
-        while True:
-            self.logger.info("Connecting to motion events API")
-            try:
-                async for event in self.cam.Event.notification.alertStream(
-                    method="get", type="stream", timeout=None
-                ):
-                    alert = event.get("EventNotificationAlert")
-                    if (
-                        alert
-                        and alert.get("channelID") == str(self.channel)
-                        and alert.get("eventType") == "VMD"
-                    ):
-                        self._last_event_timestamp = alert.get("dateTime", time.time())
-
-                        if self.motion_in_progress is False:
-                            self.motion_in_progress = True
-                            await self.trigger_motion_start()
-
-                        # End motion event after 2 seconds of no updates
-                        asyncio.ensure_future(
-                            self.maybe_end_motion_event(self._last_event_timestamp)
-                        )
-            except httpx.RequestError:
-                self.logger.error("Motion API request failed, retrying")
+        # while True:
+        #     self.logger.info("Connecting to motion events API")
+        #     try:
+        #         async for event in self.cam.Event.notification.alertStream(
+        #             method="get", type="stream", timeout=None
+        #         ):
+        #             alert = event.get("EventNotificationAlert")
+        #             if (
+        #                 alert
+        #                 and alert.get("channelID") == str(self.channel)
+        #                 and alert.get("eventType") == "VMD"
+        #             ):
+        #                 self._last_event_timestamp = alert.get("dateTime", time.time())
+        #
+        #                 if self.motion_in_progress is False:
+        #                     self.motion_in_progress = True
+        #                     await self.trigger_motion_start()
+        #
+        #                 # End motion event after 2 seconds of no updates
+        #                 asyncio.ensure_future(
+        #                     self.maybe_end_motion_event(self._last_event_timestamp)
+        #                 )
+        #     except httpx.RequestError:
+        #         self.logger.error("Motion API request failed, retrying")

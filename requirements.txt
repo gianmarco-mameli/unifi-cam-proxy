@@ -5,7 +5,7 @@ aioshutil==1.1
 aiosignal==1.2.0
 amcrest
 async-timeout==4.0.1
-aiomqtt
+aiomqtt==1.2.1
 asyncio==3.4.3
 attrs==21.2.0
 backcall==0.2.0

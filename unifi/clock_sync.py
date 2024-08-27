@@ -1,6 +1,7 @@
 """"
 Helper program to inject absolute wall clock time into FLV stream for recordings
 """
+
 import argparse
 import struct
 import sys
@@ -40,7 +41,7 @@ def write_timestamp_trailer(is_packet, ts):
     else:
         write(bytes([0, 43, 17, 0, 0, 0, 0, 0, 0, 0, 0]))
 
-    write(make_ui32(int(ts * 1000 * 100)))
+    write(make_ui32(int(ts * 1000)))
 
 
 def main(args):
@@ -108,7 +109,7 @@ def main(args):
             write(packet_to_inject)
 
             # Write 15 byte trailer
-            write_timestamp_trailer(False, now - start)
+            write_timestamp_trailer(False, (now - start) * args.timestamp_modifier)
 
             # Write mpma tag
             # {'cs': {'cur': 1500000.0,
@@ -145,7 +146,7 @@ def main(args):
             write(packet_to_inject)
 
             # Write 15 byte trailer
-            write_timestamp_trailer(False, now - start)
+            write_timestamp_trailer(False, (now - start) * args.timestamp_modifier)
 
             # Write rest of original packet minus previous packet size
             write(header)
@@ -159,7 +160,9 @@ def main(args):
         write(read_bytes(source, 3))
 
         # Write 15 byte trailer
-        write_timestamp_trailer(packet_type == 9, now - start)
+        write_timestamp_trailer(
+            packet_type == 9, (now - start) * args.timestamp_modifier
+        )
 
         # Write mpma tag
         i += 1
@@ -168,9 +171,10 @@ def main(args):
 def parse_args():
     parser = argparse.ArgumentParser(description="Modify Protect FLV stream")
     parser.add_argument(
-        "--write-timestamps",
-        action="store_true",
-        help="Indicates we should write timestamp in between packets",
+        "--timestamp-modifier",
+        type=int,
+        default="90",
+        help="Modify the timestamp correction factor (default: 90)",
     )
     return parser.parse_args()
 

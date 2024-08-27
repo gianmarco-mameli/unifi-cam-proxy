@@ -4,6 +4,12 @@ sidebar_position: 3
 
 # Dahua/Lorex
 
+:::info
+
+Nothing changed between latest version and development version
+
+:::
+
 ## Options
 
 ```text

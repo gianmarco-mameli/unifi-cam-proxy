@@ -8,12 +8,12 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 const config = {
   title: 'unifi-cam-proxy',
   tagline: 'Dinosaurs are cool',
-  url: 'https://unifi-cam-proxy.com',
-  baseUrl: '/',
+  url: 'https://zacharee.github.io',
+  baseUrl: '/unifi-cam-proxy/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
-  organizationName: 'keshavdv', // Usually your GitHub org/user name.
+  organizationName: 'zacharee', // Usually your GitHub org/user name.
   projectName: 'unifi-cam-proxy', // Usually your repo name.
   trailingSlash: false,
   presets: [
@@ -25,7 +25,7 @@ const config = {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
           // Please change this to your repo.
-          editUrl: 'https://github.com/keshavdv/unifi-cam-proxy/tree/main/docs/',
+          editUrl: 'https://github.com/zacharee/unifi-cam-proxy/tree/main/docs/',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
@@ -47,7 +47,7 @@ const config = {
             label: 'Docs',
           },
           {
-            href: 'https://github.com/keshavdv/unifi-cam-proxy',
+            href: 'https://github.com/zacharee/unifi-cam-proxy',
             label: 'GitHub',
             position: 'right',
           },
@@ -61,12 +61,12 @@ const config = {
             items: [
               {
                 label: 'GitHub',
-                href: 'https://github.com/keshavdv/unifi-cam-proxy',
+                href: 'https://github.com/zacharee/unifi-cam-proxy',
               },
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Keshav Varma. Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Keshav Varma, Zachary Wander. Built with Docusaurus.`,
       },
       prism: {
         theme: lightCodeTheme,

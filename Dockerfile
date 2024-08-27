@@ -1,4 +1,4 @@
-ARG version=3.9
+ARG version=3.11
 ARG tag=${version}-alpine3.17
 
 FROM python:${tag} as builder

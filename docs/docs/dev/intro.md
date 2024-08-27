@@ -1,9 +1,15 @@
 ---
-slug: /
-sidebar_position: 1
+slug: /dev
+sidebar_position: 0
 ---
 
 # Installation
+
+:::danger
+
+Although some new features are only supported in the development version, it is not recommended to use if you don't know what you're doing.
+
+:::
 
 ## Prerequisites
 
@@ -91,13 +97,4 @@ services:
 
 ## Bare Metal
 
-If you cannot use Docker, you may install the proxy on most Linux distros, but support is not guaranteed.
-Find instructions for your distro below:
-
-### Ubuntu/Debian
-
-```sh
-apt install ffmpeg netcat python3 python3-pip
-pip3 install unifi-cam-proxy
-unifi-cam-proxy --host {NVR IP} --cert /client.pem --token {Adoption token} rtsp -s rtsp://192.168.201.15:8554/cam'
-```
+Development version is currently only available in docker.

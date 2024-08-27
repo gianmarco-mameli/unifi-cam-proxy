@@ -8,14 +8,13 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import aiohttp
-import packaging
 import websockets
 
 from unifi.core import RetryableError
@@ -47,10 +46,8 @@ class UnifiCamBase(metaclass=ABCMeta):
         self._ssl_context.check_hostname = False
         self._ssl_context.verify_mode = ssl.CERT_NONE
         self._ssl_context.load_cert_chain(args.cert, args.cert)
-        self._session: Optional[websockets.legacy.client.WebSocketClientProtocol] = None
+        self._session: Optional[websockets.client.WebSocketClientProtocol] = None
         atexit.register(self.close_streams)
-
-        self._needs_flv_timestamps: bool = False
 
     @classmethod
     def add_parser(cls, parser: argparse.ArgumentParser) -> None:
@@ -61,10 +58,33 @@ class UnifiCamBase(metaclass=ABCMeta):
             help="Transcoding args for `ffmpeg -i <src> <args> <dst>`",
         )
         parser.add_argument(
+            "--ffmpeg-base-args",
+            "-b",
+            help="Base args for `ffmpeg <base_args> -i <src> <args> <dst>",
+            type=str,
+        )
+        parser.add_argument(
             "--rtsp-transport",
             default="tcp",
             choices=["tcp", "udp", "http", "udp_multicast"],
             help="RTSP transport protocol used by stream",
+        )
+        parser.add_argument(
+            "--timestamp-modifier",
+            type=int,
+            default="90",
+            help="Modify the timestamp correction factor (default: 90)",
+        )
+        parser.add_argument(
+            "--loglevel",
+            default="error",
+            choices=["trace", "debug", "verbose", "info", "warning", "error", "fatal", "panic", "quiet"],
+            help="Set the ffmpeg log level",
+        )
+        parser.add_argument(
+            "--format",
+            default="flv",
+            help="Set the ffpmeg output format",
         )
 
     async def _run(self, ws) -> None:
@@ -257,12 +277,7 @@ class UnifiCamBase(metaclass=ABCMeta):
         )
 
     async def process_hello(self, msg: AVClientRequest) -> None:
-        controller_version = packaging.version.parse(
-            msg["payload"].get("controllerVersion")
-        )
-        self._needs_flv_timestamps = controller_version >= packaging.version.parse(
-            "1.21.4"
-        )
+        pass
 
     async def process_param_agreement(self, msg: AVClientRequest) -> AVClientResponse:
         return self.gen_response(
@@ -360,7 +375,7 @@ class UnifiCamBase(metaclass=ABCMeta):
                                 "streamName"
                             ]
                             try:
-                                host, port = urllib.parse.urlparse(
+                                host, port = urlparse(
                                     v["avSerializer"]["destinations"][0]
                                 ).netloc.split(":")
                                 await self.start_video_stream(
@@ -433,15 +448,17 @@ class UnifiCamBase(metaclass=ABCMeta):
                         "N": 30,
                         "avSerializer": {
                             "destinations": vid_dst["video1"],
-                            "parameters": None
-                            if "video1" not in self._streams
-                            else {
-                                "audioId": None,
-                                "streamName": self._streams["video1"],
-                                "suppressAudio": None,
-                                "suppressVideo": None,
-                                "videoId": None,
-                            },
+                            "parameters": (
+                                None
+                                if "video1" not in self._streams
+                                else {
+                                    "audioId": None,
+                                    "streamName": self._streams["video1"],
+                                    "suppressAudio": None,
+                                    "suppressVideo": None,
+                                    "videoId": None,
+                                }
+                            ),
                             "type": "extendedFlv",
                         },
                         "bitRateCbrAvg": 1400000,
@@ -492,15 +509,17 @@ class UnifiCamBase(metaclass=ABCMeta):
                         "N": 30,
                         "avSerializer": {
                             "destinations": vid_dst["video2"],
-                            "parameters": None
-                            if "video2" not in self._streams
-                            else {
-                                "audioId": None,
-                                "streamName": self._streams["video2"],
-                                "suppressAudio": None,
-                                "suppressVideo": None,
-                                "videoId": None,
-                            },
+                            "parameters": (
+                                None
+                                if "video2" not in self._streams
+                                else {
+                                    "audioId": None,
+                                    "streamName": self._streams["video2"],
+                                    "suppressAudio": None,
+                                    "suppressVideo": None,
+                                    "videoId": None,
+                                }
+                            ),
                             "type": "extendedFlv",
                         },
                         "bitRateCbrAvg": 500000,
@@ -552,15 +571,17 @@ class UnifiCamBase(metaclass=ABCMeta):
                         "N": 30,
                         "avSerializer": {
                             "destinations": vid_dst["video3"],
-                            "parameters": None
-                            if "video3" not in self._streams
-                            else {
-                                "audioId": None,
-                                "streamName": self._streams["video3"],
-                                "suppressAudio": None,
-                                "suppressVideo": None,
-                                "videoId": None,
-                            },
+                            "parameters": (
+                                None
+                                if "video3" not in self._streams
+                                else {
+                                    "audioId": None,
+                                    "streamName": self._streams["video3"],
+                                    "suppressAudio": None,
+                                    "suppressVideo": None,
+                                    "videoId": None,
+                                }
+                            ),
                             "type": "extendedFlv",
                         },
                         "bitRateCbrAvg": 300000,
@@ -809,6 +830,9 @@ class UnifiCamBase(metaclass=ABCMeta):
             },
         )
 
+    async def process_continuous_move(self, msg: AVClientRequest) -> None:
+        return
+
     def gen_response(
         self, name: str, response_to: int = 0, payload: Optional[dict[str, Any]] = None
     ) -> AVClientResponse:
@@ -848,6 +872,7 @@ class UnifiCamBase(metaclass=ABCMeta):
                 "UpdateFirmwareRequest",
                 "Reboot",
                 "ubnt_avclient_hello",
+                "ContinuousMove"
             ]
         ):
             return False
@@ -893,6 +918,8 @@ class UnifiCamBase(metaclass=ABCMeta):
             return True
         elif fn == "Reboot":
             return True
+        elif fn == "ContinuousMove":
+            res = await self.process_continuous_move(m)
 
         if res is not None:
             await self.send(res)
@@ -900,6 +927,9 @@ class UnifiCamBase(metaclass=ABCMeta):
         return False
 
     def get_base_ffmpeg_args(self, stream_index: str = "") -> str:
+        if self.args.ffmpeg_base_args is not None:
+            return self.args.ffmpeg_base_args
+
         base_args = [
             "-avoid_negative_ts",
             "make_zero",
@@ -928,24 +958,24 @@ class UnifiCamBase(metaclass=ABCMeta):
         if not has_spawned or is_dead:
             source = await self.get_stream_source(stream_index)
             cmd = (
-                "ffmpeg -nostdin -loglevel error -y"
+                f"AV_LOG_FORCE_NOCOLOR=1 ffmpeg -nostdin -loglevel level+{self.args.loglevel} -y"
                 f" {self.get_base_ffmpeg_args(stream_index)} -rtsp_transport"
                 f' {self.args.rtsp_transport} -i "{source}"'
                 f" {self.get_extra_ffmpeg_args(stream_index)} -metadata"
-                f" streamName={stream_name} -f flv - | {sys.executable} -m"
+                f" streamName={stream_name} -f {self.args.format} - | {sys.executable} -m"
                 " unifi.clock_sync"
-                f" {'--write-timestamps' if self._needs_flv_timestamps else ''} | nc"
+                f" --timestamp-modifier {self.args.timestamp_modifier} | nc"
                 f" {destination[0]} {destination[1]}"
             )
 
             if is_dead:
-                self.logger.warn(f"Previous ffmpeg process for {stream_index} died.")
+                self.logger.warning(f"Previous ffmpeg process for {stream_index} died.")
 
             self.logger.info(
                 f"Spawning ffmpeg for {stream_index} ({stream_name}): {cmd}"
             )
             self._ffmpeg_handles[stream_index] = subprocess.Popen(
-                cmd, stdout=subprocess.DEVNULL, shell=True
+                cmd, stderr=subprocess.STDOUT, shell=True,
             )
 
     def stop_video_stream(self, stream_index: str):

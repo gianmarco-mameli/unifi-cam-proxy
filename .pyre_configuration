@@ -13,7 +13,7 @@
   "search_path": [
     { "site-package": "aiohttp" },
     { "site-package": "amcrest" },
-    { "site-package": "asyncio_mqtt" },
+    { "site-package": "aiomqtt" },
     { "site-package": "backoff" },
     { "site-package": "coloredlogs" },
     { "site-package": "flvlib3" },
